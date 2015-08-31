@@ -55,7 +55,18 @@ public class MainFragment extends Fragment {
     @Override
     public void onStart() {
         super.onStart();
-        updateMovies();
+        if(mMovies.isEmpty()) {
+            updateMovies();
+        } else {
+            // sort order may have changed, so resort the list of movies.
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+            String sortOrder = prefs.getString(getString(R.string.pref_sort_key), getString(R.string.pref_sort_default));
+            if(sortOrder.equals("popularity"))
+                Collections.sort(mMovies, Movie.popularityComparator);
+            else
+                Collections.sort(mMovies, Movie.ratingComparator);
+            mAdapter.notifyDataSetChanged();
+        }
     }
 
     public class FetchMoviesTask extends AsyncTask<String, Void, Movie[]> {
@@ -204,8 +215,7 @@ public class MainFragment extends Fragment {
                 // New data is back from the server.  Hooray!
             }
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
-            String sortOrder = prefs.getString(getString(R.string.pref_sort_key),
-                    getString(R.string.pref_sort_default));
+            String sortOrder = prefs.getString(getString(R.string.pref_sort_key), getString(R.string.pref_sort_default));
             if(sortOrder.equals("popularity"))
                 Collections.sort(mMovies, Movie.popularityComparator);
             else
@@ -238,6 +248,9 @@ public class MainFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+        if(savedInstanceState != null) {
+            mMovies = savedInstanceState.getParcelableArrayList("movies");
+        }
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
         GridView gridView = (GridView) rootView.findViewById(R.id.gridview_movies);
         gridView.setAdapter(mAdapter = new MovieAdapter(getActivity(), mMovies));
@@ -289,5 +302,30 @@ public class MainFragment extends Fragment {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    /**
+     * Called to ask the fragment to save its current dynamic state, so it
+     * can later be reconstructed in a new instance of its process is
+     * restarted.  If a new instance of the fragment later needs to be
+     * created, the data you place in the Bundle here will be available
+     * in the Bundle given to {@link #onCreate(Bundle)},
+     * {@link #onCreateView(LayoutInflater, ViewGroup, Bundle)}, and
+     * {@link #onActivityCreated(Bundle)}.
+     * <p/>
+     * <p>This corresponds to {@link Activity#onSaveInstanceState(Bundle)
+     * Activity.onSaveInstanceState(Bundle)} and most of the discussion there
+     * applies here as well.  Note however: <em>this method may be called
+     * at any time before {@link #onDestroy()}</em>.  There are many situations
+     * where a fragment may be mostly torn down (such as when placed on the
+     * back stack with no UI showing), but its state will not be saved until
+     * its owning activity actually needs to save its state.
+     *
+     * @param outState Bundle in which to place your saved state.
+     */
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        outState.putParcelableArrayList("movies", mMovies);
+        super.onSaveInstanceState(outState);
     }
 }
